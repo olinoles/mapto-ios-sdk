@@ -3,7 +3,7 @@
 import SwiftUI
 
 /// A simple view to display error messages with an optional retry button.
-struct ErrorView: View { // Keep internal or make public if needed outside the package
+struct ErrorView: View {
     let message: String
     let retryAction: (() -> Void)?
 
@@ -23,6 +23,6 @@ struct ErrorView: View { // Keep internal or make public if needed outside the p
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea()) // Ensure background covers screen
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 }

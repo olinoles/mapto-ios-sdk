@@ -3,11 +3,9 @@
 import Foundation
 import Combine
 
-/// An observable object responsible for fetching and decoding MapFile data from a URL.
 @MainActor
 class MapDataLoader: ObservableObject {
 
-    /// Represents the different states of the data loading process.
     enum LoadingState {
         case idle
         case loading
@@ -20,11 +18,11 @@ class MapDataLoader: ObservableObject {
     private var dataTask: URLSessionDataTask?
 
     /// Loads the map configuration JSON from the specified URL.
-    /// - Parameter url: The URL of the JSON file.
+    /// - Parameter url: The URL of the map JSON file.
     func loadMapFile(from url: URL) {
         switch state {
         case .idle, .failed:
-            break // Continue loading
+            break
         default:
             print("MapDataLoader: Already loading or successfully loaded.")
             return
@@ -89,10 +87,7 @@ class MapDataLoader: ObservableObject {
         dataTask?.resume()
     }
 
-    /// Cancels any ongoing network request.
     func cancel() {
         dataTask?.cancel()
-        // Optionally reset state if needed
-        // state = .idle
     }
 }

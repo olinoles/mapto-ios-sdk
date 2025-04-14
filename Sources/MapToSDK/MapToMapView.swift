@@ -12,15 +12,16 @@ public struct MapToMapView: View {
     private let accessToken: String
     private let cdnBaseURL: URL
 
-    /// Creates a Mapbox map view that loads its configuration asynchronously.
+    /// Creates a MapTo map view that loads its configuration asynchronously.
     ///
     /// - Parameters:
     ///   - mapFileURL: The URL pointing to the JSON map configuration file.
     ///   - accessToken: Your public Mapbox access token. Must be valid and non-empty.
     ///   - cdnBaseURL: The base URL for loading icon assets.
+
     public init(mapFileURL: URL, accessToken: String, cdnBaseURL: URL) {
         self.mapFileURL = mapFileURL
-        self.cdnBaseURL = cdnBaseURL // <-- Store it
+        self.cdnBaseURL = cdnBaseURL
         guard !accessToken.isEmpty else {
             fatalError("Mapbox Access Token provided to MapToMapView cannot be empty.")
         }
@@ -39,7 +40,6 @@ public struct MapToMapView: View {
                 ProgressView()
 
             case .success(let mapFile):
-                // Data loaded, now extract config and features for the representable
                 if let centerCoord = mapFile.centerCoordinate,
                    let style = StyleURI(rawValue: mapFile.style) {
 
@@ -76,28 +76,25 @@ public struct MapToMapView: View {
     }
 }
 
-// ErrorView struct remains the same...
-
 // MARK: - SwiftUI Previews
 
 #if DEBUG
 struct MapToMapView_Previews: PreviewProvider {
     static var previews: some View {
-        // !! WARNING !! Avoid committing real tokens.
-        let previewAccessToken = "pk.eyJ1IjoibWFwdG8tcHJvZCIsImEiOiJjbTd2cnQzdG0wM3AyMmtwaGFoamx0eHd5In0.HLpfGxAUjAgh9F2qAjcgvA" // Replace if needed
-
+        
+        let accessToken = ProcessInfo.processInfo.environment["MAPBOX_ACCESS_TOKEN"] ?? ""
+        
         let previewURL = URL(string: "https://cdn.mapto.app/map/jG076")!
-        // Define the CDN base URL for previews (adjust if different from production)
-        let previewCdnURL = URL(string: "https://cdn.mapto.app/")! // Assuming this is the base
+        let previewCdnURL = URL(string: "https://cdn.mapto.app/")!
 
-        guard !previewAccessToken.isEmpty, !previewAccessToken.starts(with: "YOUR_") else {
+        guard !accessToken.isEmpty else {
              return AnyView(ErrorView(message: "Preview requires a valid Mapbox Access Token.", retryAction: nil))
          }
 
         return AnyView(
             MapToMapView(
                 mapFileURL: previewURL,
-                accessToken: previewAccessToken,
+                accessToken: accessToken,
                 cdnBaseURL: previewCdnURL
             )
         )

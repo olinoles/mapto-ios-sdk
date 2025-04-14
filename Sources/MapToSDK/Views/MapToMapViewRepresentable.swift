@@ -2,15 +2,15 @@
 
 import SwiftUI
 import MapboxMaps
-import Combine // Needed for AnyCancellable
+import Combine
 
 struct MapToMapViewRepresentable: UIViewRepresentable {
 
     let accessToken: String
     let cameraOptions: CameraOptions
     let styleURI: StyleURI
-    let features: [Feature] // <-- Pass features data
-    let cdnBaseURL: URL // <-- Pass CDN URL for icons
+    let features: [Feature]
+    let cdnBaseURL: URL
 
     // MARK: - UIViewRepresentable Lifecycle
 
@@ -29,10 +29,9 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
 
         let mapView = MapView(frame: .zero, mapInitOptions: mapInitOptions)
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        context.coordinator.mapView = mapView // Give coordinator access to mapView
-        context.coordinator.setupEventObservation() // Start listening for map events
+        context.coordinator.mapView = mapView
+        context.coordinator.setupEventObservation()
 
-        // Ornaments setup
         mapView.ornaments.options.compass.visibility = .hidden
         mapView.ornaments.options.scaleBar.visibility = .hidden
 
@@ -42,30 +41,21 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
     func updateUIView(_ uiView: MapView, context: Context) {
         print("MapToMapViewRepresentable: updateUIView called.")
 
-        // Update coordinator's reference to parent state if needed (structs are value types)
         context.coordinator.parent = self
-        context.coordinator.mapView = uiView // Ensure coordinator has the current view instance
+        context.coordinator.mapView = uiView
 
         // Basic checks to update map for dynamic changes
         if styleURI != uiView.mapboxMap.style.uri {
             print("Updating style URI to: \(styleURI.rawValue)")
             uiView.mapboxMap.style.uri = styleURI
-            // Style change will trigger coordinator's onStyleLoaded again
         } else if !areCameraOptionsSimilar(uiView.cameraState, cameraOptions) {
              print("Updating camera state.")
              uiView.camera.fly(to: cameraOptions, duration: 0.5)
-        } else {
-            // If only features changed, tell the coordinator to update them
-            // This requires comparing feature arrays, which can be complex.
-            // For simplicity now, we rely on onStyleLoaded to add features initially.
-            // A more robust solution might involve diffing features.
-            // context.coordinator.updateFeaturesIfNeeded()
         }
     }
 
     // Helper function (keep as is)
     private func areCameraOptionsSimilar(_ current: CameraState, _ new: CameraOptions) -> Bool {
-        // ... (implementation from previous step) ...
         guard let newCenter = new.center, let newZoom = new.zoom, let newBearing = new.bearing else { return false }
         let tolerance = 0.001
         let zoomTolerance = 0.1
@@ -80,10 +70,10 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
     @MainActor
     class Coordinator: NSObject {
         var parent: MapToMapViewRepresentable
-        weak var mapView: MapView? // Use weak reference to avoid retain cycles
+        weak var mapView: MapView?
         private var cancellables = Set<AnyCancelable>()
         private var iconManager: IconManager
-        private var isSourceLayerSetup = false // Flag to prevent duplicate setup
+        private var isSourceLayerSetup = false
 
         // Constants for source and layer IDs
         let featureSourceId = "scenery-source"
@@ -98,15 +88,13 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
         func setupEventObservation() {
             guard let map = mapView?.mapboxMap else { return }
 
-            // Observe style loaded event
             map.onStyleLoaded.observe { [weak self] _ in
                 print("Coordinator: Style loaded.")
-                self?.isSourceLayerSetup = false // Reset flag on style change
+                self?.isSourceLayerSetup = false
                 self?.setupDataSourceAndLayer()
                 self?.loadIconsAndFeatures()
             }.store(in: &cancellables)
 
-            // Observe map loaded event (useful for initial setup if style is already loaded)
             map.onMapLoaded.observe { [weak self] _ in
                  print("Coordinator: Map loaded.")
                  // If style is already loaded by the time map finishes loading,
@@ -118,7 +106,7 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
                  }
             }.store(in: &cancellables)
 
-            // Add other observers (map idle, render frame, etc.) if needed later
+            // TODO Add other observers (map idle, render frame, etc.) later
         }
 
         /// Sets up the GeoJSON source and Symbol layer for features if not already done.
@@ -129,9 +117,8 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
             }
             print("Coordinator: Setting up source and layer...")
 
-            // 1. Create GeoJSON Source
             var source = GeoJSONSource(id: featureSourceId)
-            // Initialize with empty feature collection
+
             source.data = .featureCollection(FeatureCollection(features: []))
             do {
                 if !map.style.sourceExists(withId: featureSourceId) {
@@ -142,56 +129,50 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
                 }
             } catch {
                 print("Coordinator: Failed to add source '\(featureSourceId)': \(error)")
-                return // Stop if source setup fails
+                return
             }
 
-            // 2. Create Symbol Layer
             var layer = SymbolLayer(id: featureLayerId, source: featureSourceId)
 
-            // Configure layout properties using Expressions (mirroring React code)
             layer.iconImage = .expression(
                 Exp(.switchCase) {
-                    Exp(.eq) { Exp(.get) { "iconType" }; "dynamic" } // If iconType is dynamic...
-                    Exp(.get) { "featureId" } // ...use the feature's unique ID (placeholder for dynamic icon name)
-                    Exp(.get) { "icon" } // ...otherwise use the 'icon' property value
+                    Exp(.eq) { Exp(.get) { "iconType" }; "dynamic" }
+                    Exp(.get) { "featureId" }
+                    Exp(.get) { "icon" }
                 }
             )
             layer.iconAllowOverlap = .constant(true)
-            layer.textAllowOverlap = .constant(true) // If using text later
+            layer.textAllowOverlap = .constant(true)
             layer.iconAnchor = .expression(Exp(.get, "iconAnchor"))
             layer.iconIgnorePlacement = .constant(true)
-            layer.textIgnorePlacement = .constant(true) // If using text later
+            layer.textIgnorePlacement = .constant(true)
 
-            // Icon size interpolation (matching React example)
             layer.iconSize = .expression(
                 Exp(.interpolate) {
                     Exp(.exponential) { 2 }
-                    Exp(.zoom) // Input is the current zoom level
-                    // Stops: zoom level, output size
-                    0 // At zoom 0
-                    Exp(.switchCase) { // Output size at zoom 0
-                        Exp(.eq) { Exp(.get) { "type" }; "icon" } // Check feature type (using "icon" as example type)
-                        Exp(.get) { "zoomEffect" } // Use zoomEffect value if type is "icon"
-                        0.0 // Default size 0 if not type "icon"
+                    Exp(.zoom)
+                    0
+                    Exp(.switchCase) {
+                        Exp(.eq) { Exp(.get) { "type" }; "icon" }
+                        Exp(.get) { "zoomEffect" }
+                        0.0
                     }
-                    24 // At zoom 24 (or other high zoom level)
-                    Exp(.get) { "size" } // Output size is the 'size' property value
+                    24
+                    Exp(.get) { "size" }
                 }
             )
 
-            // Configure paint properties
             layer.iconOpacity = .expression(Exp(.get) { "opacity" })
 
-            // Add layer to the style
+
             do {
                 if !map.style.layerExists(withId: featureLayerId) {
-                    try map.style.addLayer(layer) // Add below labels potentially: .below("symbol-layer-id-of-labels")
+                    try map.style.addLayer(layer)
                     print("Coordinator: Added symbol layer '\(featureLayerId)'.")
                 } else {
                      print("Coordinator: Layer '\(featureLayerId)' already exists.")
-                     // If it exists, maybe update its properties? For now, assume it's correct.
                 }
-                isSourceLayerSetup = true // Mark setup as complete
+                isSourceLayerSetup = true
             } catch {
                 print("Coordinator: Failed to add layer '\(featureLayerId)': \(error)")
             }
@@ -216,7 +197,7 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
             // Extract unique, non-dynamic icon names
             let standardIconNames = Set(features.filter { $0.iconType != "dynamic" }.map { $0.icon })
 
-            Task { // Perform async operations
+            Task {
                 do {
                     // Load standard icons
                     if !standardIconNames.isEmpty {
@@ -245,12 +226,9 @@ struct MapToMapViewRepresentable: UIViewRepresentable {
 
                 } catch {
                     print("Coordinator: Failed during icon loading or feature update: \(error)")
-                    // Handle error appropriately (e.g., show alert, log)
+                    // TODO handle error appropriately
                 }
             }
         }
-
-        // Optional: Method to update features if the input array changes
-        // func updateFeaturesIfNeeded() { ... }
     }
 }
