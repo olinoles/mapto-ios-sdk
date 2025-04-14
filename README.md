@@ -8,6 +8,9 @@ Prerequisites:
 ## Example
 
 ```
+
+import MapToSDK
+
 struct ContentView: View {
     var body: some View {
 
@@ -16,7 +19,7 @@ struct ContentView: View {
         let cdnURL = URL(string: "https://cdn.mapto.app/")!
 
         return AnyView(
-            MapboxMapView(
+            MapToMapView(
                 mapFileURL: mapURL,
                 accessToken: accessToken,
                 cdnBaseURL: cdnURL
