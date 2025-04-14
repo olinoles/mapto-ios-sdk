@@ -1,23 +1,27 @@
 // swift-tools-version: 5.10
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
 import PackageDescription
 
 let package = Package(
-    name: "mapto-ios-sdk",
+    name: "MapToSDK",
+    platforms: [.iOS(.v16)],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "mapto-ios-sdk",
-            targets: ["mapto-ios-sdk"]),
+            name: "MapToSDK",
+            targets: ["MapToSDK"]
+        ),
+    ],
+    dependencies: [
+        .package(
+            url: "https://github.com/mapbox/mapbox-maps-ios.git",
+            from: "11.11.0"
+        )
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "mapto-ios-sdk"),
-        .testTarget(
-            name: "mapto-ios-sdkTests",
-            dependencies: ["mapto-ios-sdk"]),
+            name: "MapToSDK",
+            dependencies: [
+                .product(name: "MapboxMaps", package: "mapbox-maps-ios")
+            ]
+        ),
     ]
 )
