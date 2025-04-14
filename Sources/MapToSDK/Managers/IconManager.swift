@@ -4,7 +4,6 @@ import UIKit
 import MapboxMaps
 import Combine
 
-/// Manages downloading, caching, and adding icons (UIImages) to the Mapbox map style.
 @MainActor
 class IconManager {
     private var imageCache = NSCache<NSString, UIImage>()
@@ -19,7 +18,7 @@ class IconManager {
 
     /// Loads a set of icons by name, downloads if necessary, and adds them to the map style.
     /// - Parameters:
-    ///   - iconNames: A set of unique icon names (e.g., "icon_file.png").
+    ///   - iconNames: A set of unique image names (e.g., "icon_file.png").
     ///   - map: The MapboxMap instance to add images to.
     /// - Returns: A dictionary mapping icon names to loaded UIImages.
     /// - Throws: An error if any icon fails to load definitively (e.g., network error after retries).
@@ -81,7 +80,6 @@ class IconManager {
                 if let image = try await task.value {
                     print("Successfully downloaded icon '\(name)'.")
                     self.imageCache.setObject(image, forKey: name as NSString)
-                    // Ensure adding to style happens on main actor (already guaranteed by class annotation)
                     try map.style.addImage(image, id: name, sdf: false, stretchX: [], stretchY: [], content: nil)
                     print("Added downloaded icon '\(name)' to map style.")
                     loadedImages[name] = image
